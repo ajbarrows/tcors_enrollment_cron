@@ -1,0 +1,9 @@
+"project"	"site"	"screening_ineligible"	"in_progress"	"withdrawn__preproduct"	"withdrawn__postproduct"	"complete"	"date"
+"Project 1"	"uvm"	1	0	0	0	0	2020-05-07
+"Project 2"	"uvm"	0	1	0	0	0	2020-05-07
+"Project 3"	"brown"	0	2	0	0	0	2020-05-07
+"Project 3"	"uvm"	1	2	0	0	0	2020-05-07
+"Project 1"	"uvm"	1	0	0	0	0	2020-05-07
+"Project 2"	"uvm"	0	1	0	0	0	2020-05-07
+"Project 3"	"brown"	0	2	0	0	0	2020-05-07
+"Project 3"	"uvm"	1	2	0	0	0	2020-05-07
