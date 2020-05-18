@@ -1,0 +1,5 @@
+"project","site","total_screenings","screening_ineligible","pending_approval","in_progress","withdrawn__preproduct","withdrawn__postproduct","randomized","complete"
+"Project 1","uvm",1,1,0,0,0,0,0,0
+"Project 2","uvm",3,0,2,1,0,0,0,0
+"Project 3","brown",2,0,0,2,0,0,0,0
+"Project 3","uvm",9,1,6,2,0,0,0,0
