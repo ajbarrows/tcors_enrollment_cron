@@ -25,14 +25,17 @@ rcon_ps_jhu <- build_rcon("ps_proper_jhu")
 # prescreen
 ps_df_uvm <- download_ps(rcon_ps_uvm, NULL, NULL, "uvm", all_of(vars_to_keep))
 ps_df_brown <- download_ps(rcon_ps_brown, NULL, NULL, "brown", all_of(vars_to_keep))
-#ps_df_jhu <- download_ps(rcon_ps_jhu, ps_values, NULL)
-ps_df <- rbind(ps_df_uvm, ps_df_brown)
+ps_df_jhu <- download_ps(rcon_ps_jhu, NULL, NULL, "jhu", all_of(vars_to_keep))
+
+ps_df <- rbind(ps_df_uvm, ps_df_brown, ps_df_jhu)
 
 # recruitment source
 assemble_rct_source(ps_df, source_vars, "s3/")
 
 
-rc_df <- download_rc_dataframe(rcon, c(sl_values, "baseline_2_interviewer_complete"), NULL)
+rc_df <- download_rc_dataframe(rcon, c(sl_values, session_dates, 
+                                       "baseline_2_interviewer_complete",
+                                       co_values), NULL)
 current_enrollment <- suppressWarnings(get_current_enrollment(rc_df))
 
 current_ps <- summarize_prescreen(ps_df)
@@ -50,8 +53,17 @@ ps_inel_one(df_ps_inel, "s3/")
 screening_inel(rc_df, "s3/") #PILOT
 ps_df_sum <- summarize_prescreen(ps_df)
 
+
+# make an estimate of UVM screenings scheduled
+est_scrn_sched(rcon_ps_uvm)
+
 # ivr
 ivr <- load_ivr("s3/")
+
+
+
+# scratch
+
 
 
 

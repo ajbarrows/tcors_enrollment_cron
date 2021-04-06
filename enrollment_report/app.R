@@ -3,6 +3,7 @@ library(dplyr)
 library(redcapAPI)
 library(stringr)
 library(lubridate)
+library(DT)
 library(ggplot2)
 library(plotly)
 
@@ -15,7 +16,7 @@ theme_set(theme_classic(base_size = 15))
 # theme_set(theme_classic())
 
 start <- 0
-goal_p1_p3 <- 212
+goal_p1_p3 <- 236
 goal_p2 <- 300
 min_date <- ymd("2020-01-01")
 max_date <- ymd("2023-06-01")
@@ -33,6 +34,12 @@ current_enrollment <- enrollment_history %>%
   filter(date == max(date))
 ip_list <- read.csv("s3/in_progress_list.csv", stringsAsFactors = FALSE)
 ivr <- read.table("s3/ivr.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+rc_df <- read.csv("s3/rc_df.csv", stringsAsFactors = FALSE)
+session_dates <- get_session_dates(rc_df) %>%
+  group_by(subjectid) %>%
+  filter(date == max(date))
+co_df <- get_session_dates(rc_df) %>%
+  select(subjectid, date, session, pi_prop, project, site, co)
 
 # apply summary functions
 ivr_sum <- ivr_summary(ivr)
@@ -46,10 +53,15 @@ ps_df_sum <- ps_history %>%
   filter(date == max(date)) %>%
   select(-date)
 rct_source <- load_rct_source("s3/")
+rct_source_lng <- rct_source_long(rct_source)
+
+# make an estimate of UVM screenings scheduled
+scrns_sched <- read.csv("s3/scrn_sched.csv", stringsAsFactors = FALSE)
+
 # ps_df_sum <- summarize_prescreen(ps_df)
 
 # S3 Pilot Examination
-pilot_ivr <- read.csv("./misc/pilot_ivr.csv")
+# pilot_ivr <- read.csv("./misc/pilot_ivr.csv")
 
 # S2 P4 -----------------
 enrollment_history_p4 <- load_enrollment_history("p4/")
@@ -118,7 +130,7 @@ ui <- fluidPage(
               "Brown" = "brown",
               "JHU" = "jhu"
             ),
-            selected = "uvm"
+            selected = c("uvm", "brown", "jhu")
           )
         ),
         column(
@@ -129,7 +141,7 @@ ui <- fluidPage(
               "Pilot" = "pilot",
               "Proper" = "proper"
             ),
-            selected = "pilot"
+            selected = "proper"
           )
         )
       ),
@@ -145,8 +157,12 @@ ui <- fluidPage(
           br(),
           h4("Recruitment Source"),
           plotOutput("rct_source_plot"),
-          hr(),
           br(),
+          br(),
+          plotlyOutput("rct_source_ts", height = "600px"),
+          br(),
+          br(),
+          hr(),
           h4("Ineligiblity"),
           h5("General"),
           plotOutput("gen_ps_plot"),
@@ -158,15 +174,19 @@ ui <- fluidPage(
         tabPanel(
           "Enrollment",
           tableOutput("enroll_tab"),
+          textOutput("est_scrn_sched"),
           br(),
           fluidRow(
             column(
               12,
-              plotlyOutput("enrollment_ts",
-                width = "150%"
-              )
+              plotlyOutput("enrollment_ts")
             )
           ),
+          br(),
+          fluidRow(
+                   column(8,plotOutput("session_distribution")),
+                   column(4,plotOutput("plot_complete"))
+                   ),
           br(),
           h3("Progress"),
           fluidRow(
@@ -198,6 +218,9 @@ ui <- fluidPage(
             timeFormat = "%Y-%m-%d"
           ),
           br(),
+          checkboxInput("rand_need", "Show Table",
+                        value = FALSE
+                        ),
           fluidRow(
             column(12,
               offset = 1,
@@ -209,7 +232,12 @@ ui <- fluidPage(
           ),
           plotOutput("inel_plot")
         ),
-
+        
+        tabPanel(
+          "Subjects",
+          dataTableOutput("subjects")
+          
+        ),
         tabPanel(
           "Adherence",
           plotOutput("cig_adherence"),
@@ -217,14 +245,17 @@ ui <- fluidPage(
         ),
 
         tabPanel(
-          "IVR History",
+          "Product Use",
           br(),
           selectInput("selected_subjectid",
             label = "Select Participant",
             choices = ip_list$subjectid
           ),
 
-          plotlyOutput("ivr_history")
+          plotOutput("ivr_history"),
+          hr(),
+          checkboxInput("show_loess", "Trendline - LOESS"),
+          plotOutput("co_values")
         ),
 
         tabPanel(
@@ -309,9 +340,15 @@ server <- function(input, output, session) {
   })
 
   output$rct_source_plot <- renderPlot({
-    df <- rct_source %>%
+    df <- rct_source_lng %>%
       filter(site %in% input$checkSite)
     plot_rct_source(df)
+  })
+  
+  output$rct_source_ts <- renderPlotly({
+    rct_source_lng %>%
+      filter(site %in% input$checkSite) %>%
+      plot_rct_source_ts()
   })
 
   output$gen_ps_tab <- renderTable(
@@ -383,6 +420,12 @@ server <- function(input, output, session) {
     spacing = "s",
     align = "c",
   )
+  
+  output$est_scrn_sched <- renderText({
+    if(req("uvm" %in% input$checkSite)) {
+      paste("Number of UVM screenings upcoming (estimated):", nrow(scrns_sched))
+    }
+  })
 
   output$enrollment_ts <- renderPlotly({
     df <- enrollment_history %>%
@@ -395,7 +438,26 @@ server <- function(input, output, session) {
     plot_enrollment(df)
   })
 
-
+  output$session_distribution <- renderPlot({
+    df <- session_dates %>%
+      filter(
+        project %in% input$checkProject,
+        site %in% input$checkSite,
+        pi_prop %in% input$checkStudy
+      )
+    plot_session_distribution(df)
+  })
+  
+  output$plot_complete <- renderPlot({
+    df <- session_dates %>%
+      filter(
+        project %in% input$checkProject,
+        site %in% input$checkSite,
+        pi_prop %in% input$checkStudy
+      )
+    plot_complete(df)
+  })
+  
   output$inel_plot <- renderPlot({
     if (req(input$scrn_inelig)) {
       df <- inel_df %>%
@@ -437,15 +499,38 @@ server <- function(input, output, session) {
   })
 
   output$randomization_need <- renderTable({
-    if ("proper" %in% input$checkStudy) {
-      randomization_needed(
-        current_enrollment, input$start_date, max_date,
-        goal_p1_p3, goal_p2
-      ) %>%
-        filter(project %in% input$checkProject)
+    if (req(input$rand_need)) {
+      if ("proper" %in% input$checkStudy) {
+        randomization_needed(
+          current_enrollment, input$start_date, max_date,
+          goal_p1_p3, goal_p2, start
+        ) %>%
+          filter(project %in% input$checkProject)
+      }
     }
   })
-
+  
+  # subjects tab ------------
+  output$subjects <- renderDataTable({
+    df <- session_dates %>%
+      filter(
+        project %in% input$checkProject,
+        site %in% input$checkSite,
+        subjectid %in% ip_list$subjectid,
+        pi_prop %in% input$checkStudy
+      )
+    session_dates_list(df) %>%
+      datatable(options = list(
+        columnDefs = list(list(targets = c(8,11), visible = FALSE)),
+        pageLength = 100
+      )) %>%
+      formatStyle(
+        'date', 'problem',
+        target = 'row',
+        backgroundColor = styleEqual(c(TRUE, FALSE), c('yellow', 'white'))
+      )
+      
+  })
   # adherence tab -------------
   output$cig_adherence <- renderPlot(
     {
@@ -461,14 +546,55 @@ server <- function(input, output, session) {
     },
     height = reactive(ifelse(!is.null(input$innerWidth), input$innerWidth * 3 / 5, 0)) # keep aspect ratio the same
   )
-  # ivr history tab ---------
+  # product use tab  ---------
 
-  output$ivr_history <- renderPlotly({
+  use_history <- reactive ({
     sid <- input$selected_subjectid
-    df_long <- ivr_timeseries(ivr, sid)
-    plot_ivr_timeseries(df_long, ivr, sid)
+    
+    df_long <- ivr_timeseries(ivr, sid) %>%
+      filter(!is.na(cigs))
+    
+    date_min <- min(mdy(df_long$calldate))
+    date_max <- max(mdy(df_long$calldate))
+    
+    co <- co_df %>% 
+      filter(subjectid == sid,
+             ymd(date) >= date_min,
+             ymd(date) <= date_max)
+    
+    list(df_long, co, date_min, date_max)
   })
-
+  
+  
+  output$ivr_history <- renderPlot({
+    use_history <- use_history()
+    # sid <- input$selected_subjectid
+    # df_long <- ivr_timeseries(ivr, sid)
+    
+   # plot_ivr_timeseries(df_long, ivr, sid)
+    plot_ivr_timeseries(use_history[[1]], ivr, input$selected_subjectid)
+  },
+  height = 450, width = 650)
+  
+  output$co_values <- renderPlot({
+    use_history <- use_history()
+    # sid <- input$selected_subjectid
+    # df_long <- ivr_timeseries(ivr, sid)
+    sid <- input$selected_subjectid
+    p <- plot_co(sid, use_history[[2]],
+             use_history[[3]], use_history[[4]])
+    
+    if (input$show_loess) {
+      p + 
+        geom_smooth(method = "loess",
+                    formula = "y ~ x", 
+                    na.rm = TRUE, se = FALSE)
+    } else {
+      p
+    }
+  },
+  height = 450, width = 600)
+  
   # saliva tests tab -------
   output$saliva <- renderPlotly({
     spit_plot()
