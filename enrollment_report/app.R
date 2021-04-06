@@ -188,7 +188,10 @@ ui <- fluidPage(
                    column(4,plotOutput("plot_complete"))
                    ),
           br(),
+          hr(),
+          br(),
           h3("Progress"),
+          h4("Target Completion Date: June 1, 2023"),
           fluidRow(
             column(
               6,
@@ -213,20 +216,31 @@ ui <- fluidPage(
           sliderInput("start_date",
             label = "Start Date:",
             min = min_date,
-            max = max_date,
+            max = Sys.Date(),
             value = start_date,
             timeFormat = "%Y-%m-%d"
           ),
           br(),
-          checkboxInput("rand_need", "Show Table",
-                        value = FALSE
-                        ),
+
           fluidRow(
-            column(12,
-              offset = 1,
-              tableOutput("randomization_need")
-            )
+            column(6, offset = 0,
+                   h5("Randomization Progress")),
+            column(6, offset = 0,
+                   h5("Average Rand. Per Week"))
           ),
+          fluidRow(
+            column(6,
+              offset = 0,
+              tableOutput("randomization_need")
+            ),
+            column(6,
+              offset = 0,
+              tableOutput("avg_rand_table"))
+          ),
+          plotOutput("cumulative_rand_plot"),
+          br(),
+          hr(),
+          br(),
           checkboxInput("scrn_inelig", "Show Eligibility",
             value = FALSE
           ),
@@ -499,14 +513,28 @@ server <- function(input, output, session) {
   })
 
   output$randomization_need <- renderTable({
-    if (req(input$rand_need)) {
-      if ("proper" %in% input$checkStudy) {
+    if ("proper" %in% input$checkStudy) {
         randomization_needed(
           current_enrollment, input$start_date, max_date,
           goal_p1_p3, goal_p2, start
         ) %>%
           filter(project %in% input$checkProject)
-      }
+    }
+  })
+  
+  output$avg_rand_table <- renderTable({
+    if ("proper" %in% input$checkStudy) {
+      rand_rate(enrollment_history, input$start_date)[[1]] %>%
+        filter(project %in% input$checkProject)
+    }
+  })
+  
+  output$cumulative_rand_plot <- renderPlot({
+    if("proper" %in% input$checkStudy) {
+      rand_rate(
+        enrollment_history %>% filter(project %in% input$checkProject), 
+        input$start_date
+        )[[2]]
     }
   })
   

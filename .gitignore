@@ -6,4 +6,5 @@
 ./enrollment_report/password.csv
 ./enrollment_report/p4/
 ./enrollment_report/s3/
-
+./enrollment_report/misc/
+./enrollment_report/scratch.R
