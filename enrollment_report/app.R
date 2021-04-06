@@ -40,6 +40,7 @@ session_dates <- get_session_dates(rc_df) %>%
   filter(date == max(date))
 co_df <- get_session_dates(rc_df) %>%
   select(subjectid, date, session, pi_prop, project, site, co)
+s2_bl2_dates <- read.csv("study2_dates.csv") %>% filter(session == "baseline_2")
 
 # apply summary functions
 ivr_sum <- ivr_summary(ivr)
@@ -225,17 +226,24 @@ ui <- fluidPage(
           fluidRow(
             column(6, offset = 0,
                    h5("Randomization Progress")),
-            column(6, offset = 0,
-                   h5("Average Rand. Per Week"))
+            column(3, offset = 0,
+                   h5("Average Rand. Per Week")),
+            column(3, offset = 0,
+                   h5("Study 2 Reference"))
           ),
           fluidRow(
             column(6,
               offset = 0,
               tableOutput("randomization_need")
             ),
-            column(6,
+            column(3,
               offset = 0,
-              tableOutput("avg_rand_table"))
+              tableOutput("avg_rand_table")
+              ),
+            column(3,
+              offset = 0,
+              tableOutput("study2_avg_rand")
+              )
           ),
           plotOutput("cumulative_rand_plot"),
           br(),
@@ -524,19 +532,22 @@ server <- function(input, output, session) {
   
   output$avg_rand_table <- renderTable({
     if ("proper" %in% input$checkStudy) {
-      rand_rate(enrollment_history, input$start_date)[[1]] %>%
-        filter(project %in% input$checkProject)
+      rand_rate(rc_df, input$start_date)[[1]]
+    }
+  })
+  
+  output$study2_avg_rand <- renderTable({
+    if("proper" %in% input$checkStudy) {
+      s2_rand_rate(s2_bl2_dates)
     }
   })
   
   output$cumulative_rand_plot <- renderPlot({
     if("proper" %in% input$checkStudy) {
-      rand_rate(
-        enrollment_history %>% filter(project %in% input$checkProject), 
-        input$start_date
-        )[[2]]
+      rand_rate(rc_df, input$start_date)[[2]]
     }
   })
+  
   
   # subjects tab ------------
   output$subjects <- renderDataTable({
