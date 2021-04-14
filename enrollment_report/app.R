@@ -278,23 +278,9 @@ ui <- fluidPage(
           hr(),
           checkboxInput("show_loess", "Trendline - LOESS"),
           plotOutput("co_values")
-        ),
-
-        tabPanel(
-          "Saliva Tests",
-          br(),
-          plotlyOutput("saliva")
         )
       )
     ),
-    # tabPanel("Study Comparison",
-    #     tabsetPanel(
-    #       tabPanel("CPD",
-    #                checkboxInput("check_cpd_errorbars",
-    #                              "Error Bars"),
-    #                plotlyOutput("pilot_cpd")
-    #       )
-    #     )),
 
     tabPanel(
       "Study 2 Project 4",
@@ -634,65 +620,6 @@ server <- function(input, output, session) {
   },
   height = 450, width = 600)
   
-  # saliva tests tab -------
-  output$saliva <- renderPlotly({
-    spit_plot()
-  })
-
-
-  # Pilot Examination
-
-  # pilot_sub <- pilot_ivr %>%
-  #   select(subjectid, daynumber, daynumberbl2, daynumberEX, studycigs,
-  #          nonstudycigs, studyecig, nstudypods, nonstudyecig,
-  #          nnonstudypods, project, site, bl_cpd) %>%
-  #   group_by(subjectid) %>%
-  #   filter(daynumber >= daynumberbl2) %>%
-  #   ungroup()
-  #
-  # pilot_sub <- impose_week(pilot_sub)
-  #
-  #
-  # cig_avg <- pilot_sub %>%
-  #   group_by(week) %>%
-  #   filter(!is.na(week), week != "week0") %>%
-  #   summarize(avg_study = mean(studycigs, na.rm = TRUE),
-  #             sd_study = sd(studycigs, na.rm = TRUE),
-  #             avg_nonstudy = mean(nonstudycigs, na.rm = TRUE),
-  #             sd_nonstudy = sd(nonstudycigs, na.rm = TRUE),
-  #             n = n(),
-  #             sem_study = sd_study / n,
-  #             sem_nonstudy = sd_nonstudy / n)
-  #
-  # output$pilot_cpd <- renderPlotly({
-  #   p <- ggplot(cig_avg, aes(x = week)) +
-  #     geom_line(aes(y = avg_study, group = 1), color = "cornflowerblue") +
-  #     geom_line(aes(y = avg_nonstudy, group = 1), color = "deeppink4") +
-  #     geom_text(aes(x = "week3", y = min(avg_study)-1,
-  #                   label = "study cigarettes"),
-  #               color = "grey") +
-  #     geom_text(aes(x = "week3", y = max(avg_nonstudy)+1,
-  #                   label = "nonstudy cigarettes"),
-  #               color = "grey") +
-  #     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  #     labs(y = "Average CPD")
-  #
-  #   if (input$check_cpd_errorbars) {
-  #     p <- p +
-  #       geom_errorbar(aes(y = avg_nonstudy,
-  #                         ymin = avg_nonstudy - sem_study,
-  #                         ymax = avg_nonstudy + sem_study),
-  #                     color = "deeppink4") +
-  #       geom_errorbar(aes(y = avg_study,
-  #                         ymin = avg_study - sem_study,
-  #                         ymax = avg_study + sem_study),
-  #                     color = "cornflowerblue")
-  #   }
-  #   ggplotly(p)
-  # })
-
-
-
   # Project 4 -------------
   # enrollment
   output$p4_enroll_tab <- renderTable(
@@ -744,6 +671,3 @@ server <- function(input, output, session) {
 # Run the application
 shinyApp(ui = ui, server = server)
 
-
-# TODO: go through all static write-outs and organize file systems - DO NOT PUSH UNTIL YOU SORT THIS OUT
-# TODO: split p4
