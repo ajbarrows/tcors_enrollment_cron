@@ -2,7 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
-./enrollment_history/
+./enrollment_history
 ./enrollment_report/password.csv
 ./enrollment_report/p4/
 ./enrollment_report/s3/

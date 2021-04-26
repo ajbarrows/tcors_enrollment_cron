@@ -273,10 +273,12 @@ ui <- fluidPage(
             label = "Select Participant",
             choices = ip_list$subjectid
           ),
-
+          checkboxInput("show_ivr_loess", "Trendline - LOESS",
+                        value = TRUE),
           plotOutput("ivr_history"),
           hr(),
-          checkboxInput("show_loess", "Trendline - LOESS"),
+          checkboxInput("show_co_loess", "Trendline - LOESS",
+                        value = TRUE),
           plotOutput("co_values")
         )
       )
@@ -597,7 +599,10 @@ server <- function(input, output, session) {
     # df_long <- ivr_timeseries(ivr, sid)
     
    # plot_ivr_timeseries(df_long, ivr, sid)
-    plot_ivr_timeseries(use_history[[1]], ivr, input$selected_subjectid)
+    plot_ivr_timeseries(
+      use_history[[1]], 
+      ivr, input$selected_subjectid,
+      input$show_ivr_loess)
   },
   height = 450, width = 650)
   
@@ -606,17 +611,9 @@ server <- function(input, output, session) {
     # sid <- input$selected_subjectid
     # df_long <- ivr_timeseries(ivr, sid)
     sid <- input$selected_subjectid
-    p <- plot_co(sid, use_history[[2]],
-             use_history[[3]], use_history[[4]])
-    
-    if (input$show_loess) {
-      p + 
-        geom_smooth(method = "loess",
-                    formula = "y ~ x", 
-                    na.rm = TRUE, se = FALSE)
-    } else {
-      p
-    }
+    plot_co(sid, use_history[[2]],
+            use_history[[3]], use_history[[4]],
+            input$show_co_loess)
   },
   height = 450, width = 600)
   
