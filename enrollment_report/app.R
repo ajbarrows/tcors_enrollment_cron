@@ -273,8 +273,16 @@ ui <- fluidPage(
             label = "Select Participant",
             choices = ip_list$subjectid
           ),
-          checkboxInput("show_ivr_loess", "Trendline - LOESS",
-                        value = TRUE),
+          fluidRow(
+            column(4,
+              checkboxInput("show_ivr_loess", "Trendline - LOESS",
+                            value = TRUE)
+            ),
+            column(4,
+              checkboxInput("show_threshold", "Show CPD Increase Thresholds",
+                            value = FALSE)
+            )
+          ),
           plotOutput("ivr_history"),
           hr(),
           checkboxInput("show_co_loess", "Trendline - LOESS",
@@ -595,14 +603,11 @@ server <- function(input, output, session) {
   
   output$ivr_history <- renderPlot({
     use_history <- use_history()
-    # sid <- input$selected_subjectid
-    # df_long <- ivr_timeseries(ivr, sid)
-    
-   # plot_ivr_timeseries(df_long, ivr, sid)
     plot_ivr_timeseries(
       use_history[[1]], 
       ivr, input$selected_subjectid,
-      input$show_ivr_loess)
+      input$show_ivr_loess,
+      input$show_threshold)
   },
   height = 450, width = 650)
   
