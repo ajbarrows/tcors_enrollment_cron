@@ -422,7 +422,7 @@ server <- function(input, output, session) {
           pi_prop %in% input$checkStudy
         )
       # sums
-      t_sum <- s %>%
+      t_sum <- t %>%
         summarise(across(-c(project, site, pi_prop), sum))
       
       t_sum$project <- "sum"
