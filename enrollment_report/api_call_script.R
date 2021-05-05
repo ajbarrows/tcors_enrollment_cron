@@ -28,6 +28,7 @@ ps_df_brown <- download_ps(rcon_ps_brown, NULL, NULL, "brown", all_of(vars_to_ke
 ps_df_jhu <- download_ps(rcon_ps_jhu, NULL, NULL, "jhu", all_of(vars_to_keep))
 
 ps_df <- rbind(ps_df_uvm, ps_df_brown, ps_df_jhu)
+# write.csv(ps_df, "df_ps.csv", row.names = FALSE)
 
 # recruitment source
 assemble_rct_source(ps_df, source_vars, "s3/")
@@ -66,9 +67,12 @@ ivr <- load_ivr("s3/")
 
 
 
-
-
 # TCORS STUDY 2 PROJECT 4 --------------
+
+# REDCap connections
+# rcon_ps_p4 <- build_rcon("ps_p4_uvm")
+# ps_p4 <- download_ps_p4(rcon_ps_p4, NULL, NULL, "uvm")
+
 # rcon <- build_rcon("rc_p4")
 # p4_df <- download_p4_df(rcon, c(all_of(sl_p4), "baseline_2_interviewer_complete"), NULL)
 # #
