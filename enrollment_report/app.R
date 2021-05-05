@@ -31,8 +31,10 @@ logfile$date <- ymd_hms(logfile$date)
 # load from static: see api_call_script.R
 enrollment_history <- load_enrollment_history("s3/")
 current_enrollment <- enrollment_history %>%
-  filter(date == max(date))
+  filter(date == max(date)) %>%
+  select(-date)
 ip_list <- read.csv("s3/in_progress_list.csv", stringsAsFactors = FALSE)
+exec_sum <- exec_summary(ip_list, current_enrollment)
 ivr <- read.table("s3/ivr.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 rc_df <- read.csv("s3/rc_df.csv", stringsAsFactors = FALSE)
 session_dates <- get_session_dates(rc_df) %>%
@@ -174,8 +176,13 @@ ui <- fluidPage(
         ),
         tabPanel(
           "Enrollment",
-          tableOutput("enroll_tab"),
+          br(),
+          tableOutput("executive_sum"),
           textOutput("est_scrn_sched"),
+          br(),
+          checkboxInput("show_detail", "Show Detail", value = FALSE),
+          br(),
+          tableOutput("enroll_tab"),
           br(),
           fluidRow(
             column(
@@ -405,15 +412,58 @@ server <- function(input, output, session) {
     plot_ps_ineligibility(df)
   })
   # enrollment tab --------
-
-  output$enroll_tab <- renderTable(
+  
+  output$executive_sum <- renderTable(
     {
-      t <- summarize_enrollment(enrollment_history) %>%
+      t <- exec_sum %>%
         filter(
           project %in% input$checkProject,
           site %in% input$checkSite,
           pi_prop %in% input$checkStudy
         )
+      # sums
+      t_sum <- s %>%
+        summarise(across(-c(project, site, pi_prop), sum))
+      
+      t_sum$project <- "sum"
+      t_sum$site <- ""
+      t_sum$pi_prop <- ""
+      
+      # make bold
+      t_sum[] <- lapply(t_sum, function(x) paste("<strong>", x, "</strong>", sep = ""))
+      
+      # blank row
+      t[nrow(t) + 1, ] <- ""
+      
+      rbind(t, t_sum)
+    },
+    sanitize.text.function = function(x) {
+      x
+    },
+    hover = TRUE,
+    spacing = "s",
+    align = "c",
+  )
+  
+  output$enroll_tab <- renderTable(
+    if (req(input$show_detail)) {
+      t <- current_enrollment %>%
+        filter(
+          project %in% input$checkProject,
+          site %in% input$checkSite,
+          pi_prop %in% input$checkStudy
+        )
+      colnames(t) <- c(
+        "project", "site",
+        "total\nscreenings",
+        "screening_1\ncomplete",
+        "pending\napproval",
+        "ineligible\nscreenings",
+        "in\nprogress",
+        "withdrawn\npre-product",
+        "withdrawn\npost-product",
+        "randomized\n(received product)", "complete", "pi_prop"
+      )
 
       # sums
       t_sum <- t %>%
