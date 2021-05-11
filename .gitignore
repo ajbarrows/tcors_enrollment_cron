@@ -8,3 +8,4 @@
 ./enrollment_report/s3
 ./enrollment_report/misc/
 ./enrollment_report/scratch.R
+enrollment_report/s3/ivr.tsv
