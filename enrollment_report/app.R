@@ -177,6 +177,7 @@ ui <- fluidPage(
         tabPanel(
           "Enrollment",
           br(),
+          h4("Current Enrollment Snapshot"),
           tableOutput("executive_sum"),
           textOutput("est_scrn_sched"),
           br(),
