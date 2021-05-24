@@ -170,11 +170,9 @@ ui <- fluidPage(
             timeFormat = "%Y-%m-%d"
           ),
           br(),
-          h4("Recruitment Source"),
-          plotOutput("rct_source_plot"),
-          br(),
-          br(),
           plotlyOutput("rct_source_ts", height = "600px"),
+          br(),
+          plotOutput("rct_source_plot"),
           br(),
           br(),
           hr(),
@@ -376,17 +374,17 @@ server <- function(input, output, session) {
       filter(site %in% input$checkSite)
     plot_prescreen(df, inc_comp_date, input$checkCompDate, input$ps_range)
   })
-
-  output$rct_source_plot <- renderPlot({
-    df <- rct_source_lng %>%
-      filter(site %in% input$checkSite)
-    plot_rct_source(df)
-  })
   
   output$rct_source_ts <- renderPlotly({
     rct_source_lng %>%
       filter(site %in% input$checkSite) %>%
-      plot_rct_source_ts()
+      plot_rct_source_ts(inc_comp_date, input$checkCompDate, input$ps_range)
+  })
+  
+  output$rct_source_plot <- renderPlot({
+    df <- rct_source_lng %>%
+      filter(site %in% input$checkSite)
+    plot_rct_source(df)
   })
 
   output$gen_ps_tab <- renderTable(
