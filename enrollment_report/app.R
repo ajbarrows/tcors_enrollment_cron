@@ -614,8 +614,14 @@ server <- function(input, output, session) {
       filter(
         project %in% input$checkProject,
         site %in% input$checkSite,
-        subjectid %in% ip_list$subjectid,
+        # subjectid %in% ip_list$subjectid,
         pi_prop %in% input$checkStudy
+      ) %>%
+      filter(
+        !sl_status %in% c(
+          "Screening Ineligible", "Withdrawn - Pre-Product",
+          "Withdrawn - Post-Product", "Complete"
+        )
       )
     session_dates_list(df) %>%
       datatable(options = list(
