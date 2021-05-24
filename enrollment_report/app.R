@@ -21,6 +21,7 @@ goal_p2 <- 300
 min_date <- ymd("2020-01-01")
 max_date <- ymd("2023-06-01")
 start_date <- ymd("2020-11-05")
+inc_comp_date <- ymd("2021-05-17")
 
 # main:background ----------
 
@@ -157,6 +158,17 @@ ui <- fluidPage(
           h3("Prescreen"),
           tableOutput("prescreen_tab"),
           plotlyOutput("ps_plot"),
+          checkboxInput(
+            "checkCompDate", "Show Comp. Change Date (5/17/2021)", value = TRUE
+          ),
+          sliderInput(
+            "ps_range",
+            label = "Date Range:",
+            min = min_date,
+            max = Sys.Date(),
+            value = c(min_date, Sys.Date()),
+            timeFormat = "%Y-%m-%d"
+          ),
           br(),
           h4("Recruitment Source"),
           plotOutput("rct_source_plot"),
@@ -362,7 +374,7 @@ server <- function(input, output, session) {
   output$ps_plot <- renderPlotly({
     df <- ps_history %>%
       filter(site %in% input$checkSite)
-    plot_prescreen(df)
+    plot_prescreen(df, inc_comp_date, input$checkCompDate, input$ps_range)
   })
 
   output$rct_source_plot <- renderPlot({

@@ -8,6 +8,7 @@
 "failed_tox_screen","Project 3","uvm","proper",1,1
 "hr_out_of_range","Project 2","uvm","proper",1,1
 "illiterate","Project 2","uvm","proper",1,1
+"lmp_ineligible","Project 1","uvm","proper",1,1
 "lmp_ineligible","Project 2","uvm","proper",1,1
 "lmp_ineligible","Project 3","brown","proper",1,1
 "low_co","Project 3","brown","proper",1,2
@@ -31,3 +32,4 @@
 "suicidal_ideation","Project 3","uvm","proper",1,1
 "suicide_attempt","Project 3","brown","proper",1,2
 "suicide_attempt","Project 3","uvm","proper",1,1
+"unstable_om_txt","Project 2","uvm","proper",1,1
