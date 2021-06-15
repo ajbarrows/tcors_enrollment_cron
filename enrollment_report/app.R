@@ -81,7 +81,7 @@ last_updated <- max(enrollment_history$date)
 
 # Define UI
 ui <- fluidPage(
-  # script from StackOverflow to keep plot aspect ratio 1:1
+  # keep plot aspect ratio 1:1
   tags$head(tags$script('$(document).on("shiny:connected", function(e) {
                             Shiny.onInputChange("innerWidth", window.innerWidth);
                             });
@@ -359,16 +359,20 @@ server <- function(input, output, session) {
   output$last_updated <- renderText({
     paste("Last Updated", as.character(last_updated))
   })
-  # recruitment tab ------------
+  
+  # assemble filtering values
+  site_list <- reactive(req(input$checkSite))
+  project_list <- reactive(req(input$checkProject))
+  pi_prop_list <- reactive(req(input$checkStudy))
+
   output$prescreen_tab <- renderTable(
     {
       ps_df_sum %>%
-        filter(site %in% input$checkSite)
+        filter(site %in% site_list())
     },
     spacing = "s",
     align = "c"
   )
-
   output$ps_plot <- renderPlotly({
     df <- ps_history %>%
       filter(site %in% input$checkSite)
@@ -377,20 +381,20 @@ server <- function(input, output, session) {
   
   output$rct_source_ts <- renderPlotly({
     rct_source_lng %>%
-      filter(site %in% input$checkSite) %>%
+      filter(site %in% site_list()) %>%
       plot_rct_source_ts(inc_comp_date, input$checkCompDate, input$ps_range)
   })
   
   output$rct_source_plot <- renderPlot({
     df <- rct_source_lng %>%
-      filter(site %in% input$checkSite)
+      filter(site %in% site_list())
     plot_rct_source(df)
   })
 
   output$gen_ps_tab <- renderTable(
     {
       df_ps_gen %>%
-        filter(site %in% input$checkSite)
+        filter(site %in% site_list())
     },
     spacing = "s",
     align = "c"
@@ -398,20 +402,20 @@ server <- function(input, output, session) {
 
   output$gen_ps_plot <- renderPlot({
     df <- df_ps_gen %>%
-      filter(site %in% input$checkSite)
+      filter(site %in% site_list())
     plot_ps_ineligibility(df)
   })
 
   output$ps_one_plot <- renderPlot({
     df <- df_ps_inel_one %>%
-      filter(site %in% input$checkSite)
+      filter(site %in% site_list())
     plot_ps_ineligibility(df)
   })
 
   output$specific_ps_tab <- renderTable(
     {
       df_ps_spec %>%
-        filter(site %in% input$checkSite)
+        filter(site %in% site_list())
     },
     spacing = "s",
     align = "c"
@@ -419,7 +423,7 @@ server <- function(input, output, session) {
 
   output$gen_ps_spec <- renderPlot({
     df <- df_ps_spec %>%
-      filter(site %in% input$checkSite)
+      filter(site %in% site_list())
     plot_ps_ineligibility(df)
   })
   # enrollment tab --------
@@ -428,9 +432,9 @@ server <- function(input, output, session) {
     {
       t <- exec_sum %>%
         filter(
-          project %in% input$checkProject,
-          site %in% input$checkSite,
-          pi_prop %in% input$checkStudy
+          project %in% project_list(),
+          site %in% site_list(),
+          pi_prop %in% pi_prop_list()
         )
       # sums
       t_sum <- t %>%
@@ -460,9 +464,9 @@ server <- function(input, output, session) {
     if (req(input$show_detail)) {
       t <- current_enrollment %>%
         filter(
-          project %in% input$checkProject,
-          site %in% input$checkSite,
-          pi_prop %in% input$checkStudy
+          project %in% project_list(),
+          site %in% site_list(),
+          pi_prop %in% pi_prop_list()
         )
       colnames(t) <- c(
         "project", "site",
@@ -501,7 +505,7 @@ server <- function(input, output, session) {
   )
   
   output$est_scrn_sched <- renderText({
-    if(req("uvm" %in% input$checkSite)) {
+    if(req("uvm" %in% site_list())) {
       paste("Number of UVM screenings upcoming (estimated):", nrow(scrns_sched))
     }
   })
@@ -509,9 +513,9 @@ server <- function(input, output, session) {
   output$enrollment_ts <- renderPlotly({
     df <- enrollment_history %>%
       filter(
-        project %in% input$checkProject,
-        site %in% input$checkSite,
-        pi_prop %in% input$checkStudy
+        project %in% project_list(),
+        site %in% site_list(),
+        pi_prop %in% pi_prop_list()
       )
 
     plot_enrollment(df)
@@ -520,9 +524,9 @@ server <- function(input, output, session) {
   output$session_distribution <- renderPlot({
     df <- session_dates %>%
       filter(
-        project %in% input$checkProject,
-        site %in% input$checkSite,
-        pi_prop %in% input$checkStudy
+        project %in% project_list(),
+        site %in% site_list(),
+        pi_prop %in% pi_prop_list()
       )
     plot_session_distribution(df)
   })
@@ -530,9 +534,9 @@ server <- function(input, output, session) {
   output$plot_complete <- renderPlot({
     df <- session_dates %>%
       filter(
-        project %in% input$checkProject,
-        site %in% input$checkSite,
-        pi_prop %in% input$checkStudy
+        project %in% project_list(),
+        site %in% site_list(),
+        pi_prop %in% pi_prop_list()
       )
     plot_complete(df)
   })
@@ -541,9 +545,9 @@ server <- function(input, output, session) {
     if (req(input$scrn_inelig)) {
       df <- inel_df %>%
         filter(
-          site %in% input$checkSite,
-          project %in% input$checkProject,
-          pi_prop %in% input$checkStudy
+          site %in% site_list(),
+          project %in% project_list(),
+          pi_prop %in% pi_prop_list()
         )
 
       plot_screening_ineligibility(df)
@@ -551,9 +555,9 @@ server <- function(input, output, session) {
   })
 
   output$p1_p3_randomization <- renderPlot({
-    if ("proper" %in% input$checkStudy) {
+    if ("proper" %in% pi_prop_list()) {
       enrollment_history <- enrollment_history %>%
-        filter(project %in% input$checkProject &
+        filter(project %in% project_list() &
           project != "Project 2" &
           site %in% sites)
 
@@ -565,7 +569,7 @@ server <- function(input, output, session) {
   })
 
   output$p2_randomization <- renderPlot({
-    if ("proper" %in% input$checkStudy) {
+    if ("proper" %in% pi_prop_list()) {
       enrollment_history <- enrollment_history %>%
         filter(project == "Project 2" &
           site %in% sites)
@@ -578,29 +582,29 @@ server <- function(input, output, session) {
   })
 
   output$randomization_need <- renderTable({
-    if ("proper" %in% input$checkStudy) {
+    if ("proper" %in% pi_prop_list()) {
         randomization_needed(
           current_enrollment, input$start_date, max_date,
           goal_p1_p3, goal_p2, start
         ) %>%
-          filter(project %in% input$checkProject)
+          filter(project %in% project_list())
     }
   })
   
   output$avg_rand_table <- renderTable({
-    if ("proper" %in% input$checkStudy) {
+    if ("proper" %in% pi_prop_list()) {
       rand_rate(rc_df, input$start_date)[[1]]
     }
   })
   
   output$study2_avg_rand <- renderTable({
-    if("proper" %in% input$checkStudy) {
+    if("proper" %in% pi_prop_list()) {
       s2_rand_rate(s2_bl2_dates)
     }
   })
   
   output$cumulative_rand_plot <- renderPlot({
-    if("proper" %in% input$checkStudy) {
+    if("proper" %in% pi_prop_list()) {
       rand_rate(rc_df, input$start_date)[[2]]
     }
   })
@@ -610,10 +614,10 @@ server <- function(input, output, session) {
   output$subjects <- renderDataTable({
     df <- session_dates %>%
       filter(
-        project %in% input$checkProject,
-        site %in% input$checkSite,
+        project %in% project_list(),
+        site %in% site_list(),
         # subjectid %in% ip_list$subjectid,
-        pi_prop %in% input$checkStudy
+        pi_prop %in% pi_prop_list()
       ) %>%
       filter(
         !sl_status %in% c(
@@ -639,10 +643,10 @@ server <- function(input, output, session) {
       # filter reactive project, site, in progress
       df <- ivr_sum %>%
         filter(
-          project %in% input$checkProject,
-          site %in% input$checkSite,
+          project %in% project_list(),
+          site %in% site_list(),
           subjectid %in% ip_list$subjectid,
-          pi_prop %in% input$checkStudy
+          pi_prop %in% pi_prop_list()
         )
       plot_cig_adherence(df)
     },
@@ -695,7 +699,7 @@ server <- function(input, output, session) {
     {
       summarize_enrollment(enrollment_history_p4) %>%
         filter(
-          site %in% input$checkSite_p4,
+          site %in% checkSite_p4,
           project %in% input$checkProject_p4
         )
 
@@ -731,7 +735,7 @@ server <- function(input, output, session) {
       )
     # filter(project %in% input$checkProject,
     #        site %in% input$checkSite,
-    #        pi_prop %in% input$checkStudy)
+    #        pi_prop %in% pi_prop_list())
 
     plot_enrollment(df)
   })
