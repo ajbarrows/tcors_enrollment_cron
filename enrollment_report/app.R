@@ -16,8 +16,8 @@ theme_set(theme_classic(base_size = 15))
 # theme_set(theme_classic())
 
 start <- 0
-goal_p1_p3 <- 236
-goal_p2 <- 300
+goal_p1_p3 <- 212
+goal_p2 <-255
 min_date <- ymd("2020-01-01")
 max_date <- ymd("2023-06-01")
 start_date <- ymd("2020-11-05")
