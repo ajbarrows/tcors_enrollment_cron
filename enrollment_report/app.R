@@ -6,6 +6,7 @@ library(lubridate)
 library(DT)
 library(ggplot2)
 library(plotly)
+library(DiagrammeR)
 
 
 # source fucntions
@@ -35,6 +36,7 @@ current_enrollment <- enrollment_history %>%
   filter(date == max(date)) %>%
   select(-date)
 ip_list <- read.csv("s3/in_progress_list.csv", stringsAsFactors = FALSE)
+full_subject_list <- read.csv("s3/full_list.csv", stringsAsFactors = FALSE)
 exec_sum <- exec_summary(ip_list, current_enrollment)
 ivr <- read.table("s3/ivr.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 rc_df <- read.csv("s3/rc_df.csv", stringsAsFactors = FALSE)
@@ -58,6 +60,9 @@ ps_df_sum <- ps_history %>%
   select(-date)
 rct_source <- load_rct_source("s3/")
 rct_source_lng <- rct_source_long(rct_source)
+
+# make flowchart graph
+uvm_flowchart_graph <- ps_flowchart(ps_df, full_subject_list)
 
 # make an estimate of UVM screenings scheduled
 scrns_sched <- read.csv("s3/scrn_sched.csv", stringsAsFactors = FALSE)
@@ -156,20 +161,31 @@ ui <- fluidPage(
         tabPanel(
           "Recruitment",
           h3("Prescreen"),
-          tableOutput("prescreen_tab"),
-          plotlyOutput("ps_plot"),
-          checkboxInput(
-            "checkCompDate", "Show Comp. Change Date (5/17/2021)", value = TRUE
-          ),
-          sliderInput(
-            "ps_range",
-            label = "Date Range:",
-            min = min_date,
-            max = Sys.Date(),
-            value = c(min_date, Sys.Date()),
-            timeFormat = "%Y-%m-%d"
+          tabsetPanel(
+            type = "tabs",
+            tabPanel(
+              "Cumulative",
+              tableOutput("prescreen_tab"),
+              plotlyOutput("ps_plot"),
+              checkboxInput(
+                "checkCompDate", "Show Comp. Change Date (5/17/2021)", value = TRUE
+              ),
+              sliderInput(
+                "ps_range",
+                label = "Date Range:",
+                min = min_date,
+                max = Sys.Date(),
+                value = c(min_date, Sys.Date()),
+                timeFormat = "%Y-%m-%d"
+              ),
+            ),
+            tabPanel(
+              "Flow Chart (UVM Only)",
+              grVizOutput('uvm_flowchart', width = "150%", height = "1000px")
+            )
           ),
           br(),
+          hr(),
           plotlyOutput("rct_source_ts", height = "600px"),
           br(),
           plotOutput("rct_source_plot"),
@@ -426,6 +442,11 @@ server <- function(input, output, session) {
       filter(site %in% site_list())
     plot_ps_ineligibility(df)
   })
+  
+  output$uvm_flowchart <- renderGrViz({
+    uvm_flowchart_graph
+  })
+  
   # enrollment tab --------
   
   output$executive_sum <- renderTable(
