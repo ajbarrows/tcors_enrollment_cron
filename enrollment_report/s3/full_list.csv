@@ -52,6 +52,7 @@
 "Y-A021","Screening Ineligible",NA
 "Y-A022","Withdrawn - Post-Product","randomized"
 "Y-A023","Screening Ineligible",NA
+"Y-A024","Screening Ineligible",NA
 "Y-A025","Screening Ineligible",NA
 "Y-A026","Screening Ineligible",NA
 "Y-A027","Screening Ineligible",NA
@@ -156,9 +157,10 @@
 "Z-B040","In Progress",NA
 "Z-B041","In Progress",NA
 "Z-B042","Screening Ineligible",NA
-"Z-B043","Under LMP Review",NA
+"Z-B043","Screening Ineligible",NA
 "Z-B044","In Progress",NA
 "Z-B045","In Progress",NA
+"Z-B046","Screening Ineligible",NA
 "Z-B906","Complete","randomized"
 "Z-B907","Complete","randomized"
 "Z-B908","Withdrawn - Post-Product","randomized"

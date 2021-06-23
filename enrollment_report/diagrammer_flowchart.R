@@ -1,7 +1,14 @@
 library(DiagrammeR)
+library(magrittr)
+library(dplyr)
+
+# source("functions.R")
 
 # data
-flow <- count_rct_flow(ps_df, full_list, sites = "uvm")
+full_subject_list <- read.csv("s3/full_list.csv")
+ps_df <- read.csv("s3/df_ps.csv")
+flow <- count_rct_flow(ps_df, full_subject_list, sites = "uvm")
+
 
 # prescreen counts
 ps <- flow[[1]]
@@ -36,8 +43,8 @@ enroll_status$pct <- round((enroll_status$n/n_signed_consent) * 100)
 # enroll_status$pct <- round((enroll_status$n/unique_ps) * 100)
 
 
-grViz("
-digraph a_nice_graph {
+uvm_flowchart_graph <- grViz("
+digraph uvm_flowchart {
 
   # node definitions with substituted label text
   node [fontname = Helvetica]
@@ -89,3 +96,8 @@ digraph a_nice_graph {
   [4]: paste(scrn_status_names[1:3], '\\n', scrn_status_sum[1:3], ' (', scrn_status_pct[1:3], '%)', sep = '')
   [5]: paste(enroll_status$sl_status[1:7], '\\n', enroll_status$n[1:7], ' (', enroll_status$pct[1:7], '%)', sep = '')
 ")
+
+save(uvm_flowchart_graph, file = "s3/flowchart.RData")
+
+  
+  

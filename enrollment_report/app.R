@@ -36,7 +36,7 @@ current_enrollment <- enrollment_history %>%
   filter(date == max(date)) %>%
   select(-date)
 ip_list <- read.csv("s3/in_progress_list.csv", stringsAsFactors = FALSE)
-full_subject_list <- read.csv("s3/full_list.csv", stringsAsFactors = FALSE)
+# full_subject_list <- read.csv("s3/full_list.csv", stringsAsFactors = FALSE)
 exec_sum <- exec_summary(ip_list, current_enrollment)
 ivr <- read.table("s3/ivr.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 rc_df <- read.csv("s3/rc_df.csv", stringsAsFactors = FALSE)
@@ -46,6 +46,7 @@ session_dates <- get_session_dates(rc_df) %>%
 co_df <- get_session_dates(rc_df) %>%
   select(subjectid, date, session, pi_prop, project, site, co)
 s2_bl2_dates <- read.csv("study2_dates.csv") %>% filter(session == "baseline_2")
+# ps_df <- read.csv("s3/df_ps.csv", stringsAsFactors = FALSE)
 
 # apply summary functions
 ivr_sum <- ivr_summary(ivr)
@@ -61,8 +62,8 @@ ps_df_sum <- ps_history %>%
 rct_source <- load_rct_source("s3/")
 rct_source_lng <- rct_source_long(rct_source)
 
-# make flowchart graph
-uvm_flowchart_graph <- ps_flowchart(ps_df, full_subject_list)
+# prescreen flowchart
+load("s3/flowchart.RData")
 
 # make an estimate of UVM screenings scheduled
 scrns_sched <- read.csv("s3/scrn_sched.csv", stringsAsFactors = FALSE)

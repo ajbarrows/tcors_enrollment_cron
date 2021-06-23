@@ -6,6 +6,7 @@ library(stringr)
 library(lubridate)
 # source fucntions
 source("functions.R")
+source("diagrammer_flowchart.R")
 
 logfile <- load_logfile()
 logfile$date <- ymd_hms(logfile$date)
@@ -27,7 +28,7 @@ ps_df_brown <- download_ps(rcon_ps_brown, NULL, NULL, "brown", all_of(vars_to_ke
 ps_df_jhu <- download_ps(rcon_ps_jhu, NULL, NULL, "jhu", all_of(vars_to_keep))
 
 ps_df <- rbind(ps_df_uvm, ps_df_brown, ps_df_jhu)
-# write.csv(ps_df, "df_ps.csv", row.names = FALSE)
+write.csv(ps_df, "s3/df_ps.csv", row.names = FALSE)
 
 # recruitment source
 assemble_rct_source(ps_df, source_vars, "s3/")
