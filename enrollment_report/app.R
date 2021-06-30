@@ -182,7 +182,8 @@ ui <- fluidPage(
             ),
             tabPanel(
               "Flow Chart (UVM Only)",
-              grVizOutput('uvm_flowchart', width = "150%", height = "1000px")
+              grVizOutput('uvm_flowchart', width = "150%", height = "760px"),
+              htmlOutput("disclaimer")
             )
           ),
           br(),
@@ -446,6 +447,14 @@ server <- function(input, output, session) {
   
   output$uvm_flowchart <- renderGrViz({
     uvm_flowchart_graph
+  })
+  
+  output$disclaimer <- renderText({
+    "<h4> Note: </h4>
+    <ul>
+      <li> <b> Percentages refer to the level above </b> </li>
+      <li> <b> Values are estimated and always changing </b> </li>
+    </ul>"
   })
   
   # enrollment tab --------
