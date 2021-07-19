@@ -181,26 +181,29 @@ ui <- fluidPage(
               ),
             ),
             tabPanel(
+              "Recruitment Source",
+              br(),
+              plotlyOutput("rct_source_ts", height = "600px"),
+              br(),
+              plotOutput("rct_source_plot")
+            ),
+            tabPanel(
+              "Ineligibility",
+              br(),
+              h4("Ineligiblity"),
+              h5("General"),
+              plotOutput("gen_ps_plot"),
+              h5("Only One Reason"),
+              plotOutput("ps_one_plot"),
+              h5("Specific"),
+              plotOutput("gen_ps_spec"),
+            ),
+            tabPanel(
               "Flow Chart (UVM Only)",
               grVizOutput('uvm_flowchart', width = "150%", height = "760px"),
               htmlOutput("disclaimer")
             )
           ),
-          br(),
-          hr(),
-          plotlyOutput("rct_source_ts", height = "600px"),
-          br(),
-          plotOutput("rct_source_plot"),
-          br(),
-          br(),
-          hr(),
-          h4("Ineligiblity"),
-          h5("General"),
-          plotOutput("gen_ps_plot"),
-          h5("Only One Reason"),
-          plotOutput("ps_one_plot"),
-          h5("Specific"),
-          plotOutput("gen_ps_spec"),
         ),
         tabPanel(
           "Enrollment",
@@ -232,7 +235,6 @@ ui <- fluidPage(
           fluidRow(
             column(
               6,
-
               conditionalPanel(
                 condition = "input.checkProject.includes('Project 1' || 'Project 3')",
                 h4("P1/P3"),
