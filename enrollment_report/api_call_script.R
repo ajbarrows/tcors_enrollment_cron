@@ -30,9 +30,6 @@ ps_df_jhu <- download_ps(rcon_ps_jhu, NULL, NULL, "jhu", all_of(vars_to_keep))
 ps_df <- rbind(ps_df_uvm, ps_df_brown, ps_df_jhu)
 write.csv(ps_df, "s3/df_ps.csv", row.names = FALSE)
 
-# recruitment source
-assemble_rct_source(ps_df, source_vars, "s3/")
-
 
 rc_df <- download_rc_dataframe(rcon, c(sl_values, session_dates, 
                                        "baseline_2_interviewer_complete",

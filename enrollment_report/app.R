@@ -18,7 +18,7 @@ theme_set(theme_classic(base_size = 15))
 
 start <- 0
 goal_p1_p3 <- 212
-goal_p2 <-255
+goal_p2 <- 255
 min_date <- ymd("2020-01-01")
 max_date <- ymd("2023-06-01")
 start_date <- ymd("2020-11-05")
@@ -46,7 +46,7 @@ session_dates <- get_session_dates(rc_df) %>%
 co_df <- get_session_dates(rc_df) %>%
   select(subjectid, date, session, pi_prop, project, site, co)
 s2_bl2_dates <- read.csv("study2_dates.csv") %>% filter(session == "baseline_2")
-# ps_df <- read.csv("s3/df_ps.csv", stringsAsFactors = FALSE)
+ps_df <- read.csv("s3/df_ps.csv", stringsAsFactors = FALSE)
 
 # apply summary functions
 ivr_sum <- ivr_summary(ivr)
@@ -59,8 +59,10 @@ ps_history <- load_prescreen_history("s3/")
 ps_df_sum <- ps_history %>%
   filter(date == max(date)) %>%
   select(-date)
-rct_source <- load_rct_source("s3/")
-rct_source_lng <- rct_source_long(rct_source)
+# rct_source <- load_rct_source("s3/")
+# rct_source_lng <- rct_source_long(rct_source)
+
+rct_source <- assemble_rct_source(ps_df, source_vars, min_date)
 
 # prescreen flowchart
 load("s3/flowchart.RData")
@@ -400,13 +402,13 @@ server <- function(input, output, session) {
   })
   
   output$rct_source_ts <- renderPlotly({
-    rct_source_lng %>%
+    rct_source %>%
       filter(site %in% site_list()) %>%
       plot_rct_source_ts(inc_comp_date, input$checkCompDate, input$ps_range)
   })
   
   output$rct_source_plot <- renderPlot({
-    df <- rct_source_lng %>%
+    df <- rct_source %>%
       filter(site %in% site_list())
     plot_rct_source(df)
   })

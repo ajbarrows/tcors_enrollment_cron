@@ -623,9 +623,6 @@ plot_ps_ineligibility <- function(df) {
     labs(x = "")
 }
 
-# recruitment_source <- function()
-
-
 plot_screening_ineligibility <- function(df) {
   ggplot(df, aes(x = name, y = n)) +
     geom_col(aes(fill = project)) +
@@ -789,31 +786,36 @@ load_prescreen_history <- function(direc) {
   df
 }
 
-assemble_rct_source <- function(ps_df, source_vars, direc) {
-  rct_source <- ps_df %>%
-    select(site, all_of(source_vars)) %>%
-    as_tibble() %>%
-    group_by(site) %>%
+
+assemble_rct_source <- function(ps_df, source_vars, min_date) {
+  
+  # Return sum and cumulative sum of prescreen counts for each source_vars by 
+  # date
+  
+  ps_df %>%
+    select(site, recruit_date, all_of(source_vars)) %>%
+    mutate(recruit_date = as.Date(recruit_date)) %>%
+    filter(recruit_date < Sys.Date() & recruit_date > min_date) %>%
+    group_by(recruit_date, site) %>%
     summarize_all(~ sum(., na.rm = TRUE)) %>%
-    mutate(date = Sys.time())
-
-  write.table(rct_source,
-    file = paste("../enrollment_history/", direc, "rct_source_history.tsv", sep = ""),
-    append = TRUE,
-    row.names = FALSE, col.names = FALSE,
-    sep = "\t"
-  )
+    tidyr::pivot_longer(cols = -c(recruit_date, site)) %>%
+    group_by(site, name) %>%
+    mutate(cs = cumsum(value)) %>%
+    ungroup()
 }
 
-load_rct_source <- function(direc) {
-  df <- read.table(paste("../enrollment_history/", direc, "rct_source_history.tsv", sep = ""),
-    sep = "\t",
-    stringsAsFactors = FALSE,
-    header = TRUE
-  )
-  df$date <- ymd_hms(df$date)
-  df
-}
+
+
+
+# load_rct_source <- function(direc) {
+#   df <- read.table(paste("../enrollment_history/", direc, "rct_source_history.tsv", sep = ""),
+#     sep = "\t",
+#     stringsAsFactors = FALSE,
+#     header = TRUE
+#   )
+#   df$date <- ymd_hms(df$date)
+#   df
+# }
 
 in_progress_list <- function(rc_df, direc) {
   # return lists of in-progress and all participants
@@ -1034,7 +1036,6 @@ plot_enrollment <- function(enrollment_history) {
     labs(x = "", y = ""))
 }
 
-# plot_enrollment(enrollment_history %>% filter(pi_prop == "proper"))
 plot_prescreen <- function(ps_history, inc_comp_date, checkCompDate, date_range) {
   df <- ps_history %>%
     rename("datetime" = date) %>%
@@ -1092,14 +1093,13 @@ rct_source_long <- function(rct_source) {
 }
 
 
-plot_rct_source <- function(rct_source_long) {
-  rct_source_long %>%
-    filter(date == max(date)) %>%
-    group_by(variable, site) %>%
-    summarize(value = sum(value, na.rm = TRUE)) %>%
+plot_rct_source <- function(rct_source) {
+  rct_source %>%
+    group_by(site) %>%
+    filter(recruit_date == max(recruit_date)) %>%
     ungroup() %>%
-    mutate(perc = (value / sum(value, na.rm = TRUE)) * 100) %>%
-    ggplot(aes(x = variable, y = perc, fill = site)) +
+    mutate(perc = (cs / sum(cs, na.rm = TRUE)) * 100) %>%
+    ggplot(aes(x = name, y = perc, fill = site)) +
     geom_col() +
     theme(axis.text.x = element_text(
       angle = 45, vjust = 0.75, hjust = 1
@@ -1110,15 +1110,13 @@ plot_rct_source <- function(rct_source_long) {
     )
 }
 
-plot_rct_source_ts <- function(rct_source_long, inc_comp_date, checkCompDate, date_range) {
-  p <- rct_source_long %>%
-    group_by(date, variable) %>%
-    filter(date >= date_range[1] & date <= date_range[2]) %>%
-    summarize(value = sum(value, na.rm = TRUE)) %>%
-    # mutate(percent_of_prescreens = round(perc, digits = 2)) %>%
-    ggplot(aes(x = date, y = value, color = variable)) +
+plot_rct_source_ts <- function(rct_source, inc_comp_date, checkCompDate, date_range) {
+  p <- rct_source %>%
+    group_by(name) %>%
+    # filter(recruit_date >= date_range[1] & recruit_date <= date_range[2]) %>%
+    mutate(cs = cumsum(value)) %>%
+    ggplot(aes(x = recruit_date, y = cs, color = name)) +
     geom_line() +
-    # facet_wrap(~site) +
     theme_classic(base_size = 13) +
     labs(
       x = "",
