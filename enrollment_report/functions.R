@@ -793,29 +793,20 @@ assemble_rct_source <- function(ps_df, source_vars, min_date) {
   # date
   
   ps_df %>%
-    select(site, recruit_date, all_of(source_vars)) %>%
-    mutate(recruit_date = as.Date(recruit_date)) %>%
+    select(site, recruit_date, all_of(source_vars), screen_status) %>%
+    mutate(recruit_date = as.Date(recruit_date),
+           screen_status = ifelse(
+             screen_status != 3 | is.na(screen_status), FALSE, TRUE
+           )) %>%
     filter(recruit_date < Sys.Date() & recruit_date > min_date) %>%
-    group_by(recruit_date, site) %>%
+    group_by(recruit_date, site, screen_status) %>%
     summarize_all(~ sum(., na.rm = TRUE)) %>%
-    tidyr::pivot_longer(cols = -c(recruit_date, site)) %>%
+    tidyr::pivot_longer(cols = -c(recruit_date, site, screen_status)) %>%
     group_by(site, name) %>%
     mutate(cs = cumsum(value)) %>%
     ungroup()
 }
 
-
-
-
-# load_rct_source <- function(direc) {
-#   df <- read.table(paste("../enrollment_history/", direc, "rct_source_history.tsv", sep = ""),
-#     sep = "\t",
-#     stringsAsFactors = FALSE,
-#     header = TRUE
-#   )
-#   df$date <- ymd_hms(df$date)
-#   df
-# }
 
 in_progress_list <- function(rc_df, direc) {
   # return lists of in-progress and all participants

@@ -1,4 +1,5 @@
 library(shiny)
+library(shinyWidgets)
 library(dplyr)
 library(redcapAPI)
 library(stringr)
@@ -59,8 +60,6 @@ ps_history <- load_prescreen_history("s3/")
 ps_df_sum <- ps_history %>%
   filter(date == max(date)) %>%
   select(-date)
-# rct_source <- load_rct_source("s3/")
-# rct_source_lng <- rct_source_long(rct_source)
 
 rct_source <- assemble_rct_source(ps_df, source_vars, min_date)
 
@@ -184,6 +183,11 @@ ui <- fluidPage(
             ),
             tabPanel(
               "Recruitment Source",
+              br(),
+              materialSwitch(
+                inputId = "filter_screened",
+                label = "Show only in-person screenings",
+                value = FALSE),
               br(),
               plotlyOutput("rct_source_ts", height = "600px"),
               br(),
@@ -386,6 +390,17 @@ server <- function(input, output, session) {
   site_list <- reactive(req(input$checkSite))
   project_list <- reactive(req(input$checkProject))
   pi_prop_list <- reactive(req(input$checkStudy))
+  
+  # recruitment ----------
+  
+  # reactive( {
+  #   if (req(input$filter_screened)) {
+  #     rct_source <- rct_source %>%
+  #       filter(screen_status == TRUE)
+  #   }
+  # })
+  
+
 
   output$prescreen_tab <- renderTable(
     {
@@ -402,14 +417,22 @@ server <- function(input, output, session) {
   })
   
   output$rct_source_ts <- renderPlotly({
-    rct_source %>%
-      filter(site %in% site_list()) %>%
-      plot_rct_source_ts(inc_comp_date, input$checkCompDate, input$ps_range)
+    df <- rct_source %>%
+      filter(site %in% site_list())
+    if (input$filter_screened) {
+      df <- df %>%
+        filter(screen_status == TRUE)
+    }
+    plot_rct_source_ts(df, inc_comp_date, input$checkCompDate, input$ps_range)
   })
   
   output$rct_source_plot <- renderPlot({
     df <- rct_source %>%
       filter(site %in% site_list())
+    if (input$filter_screened) {
+      df <- df %>%
+        filter(screen_status == TRUE)
+    }
     plot_rct_source(df)
   })
 
