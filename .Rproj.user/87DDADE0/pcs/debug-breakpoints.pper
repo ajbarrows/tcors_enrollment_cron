@@ -1,0 +1,21 @@
+{
+    "debugBreakpointsState": {
+        "breakpoints": [
+            {
+                "editor_line_number": 3,
+                "editor_state": 1,
+                "function_name": "build_rcon",
+                "function_steps": "2",
+                "id": 0,
+                "is_package_breakpoint": false,
+                "is_pending_debug_completion": false,
+                "line_number": 3,
+                "needs_updated_steps": false,
+                "package_name": "",
+                "path": "~/Dropbox/vcbh/biostats/s2/common/s2_functions.R",
+                "state": 1,
+                "type": 0
+            }
+        ]
+    }
+}

@@ -1,0 +1,629 @@
+# Eli Klemperer e-cigarette national RRP DSMB Report
+# Tony Barrows
+# 2022-01-21
+
+library(redcapAPI)
+library(dplyr)
+
+# functions ----
+build_rcon <- function(rc){
+  # Wrapper around the redcapAPI::redcapConnection() using
+  # a .csv token sheet in the working directory.
+  url <- 'https://redcap.med.uvm.edu/api/'
+  # import passwords document
+  pw <- read.csv("./password.csv", stringsAsFactors = FALSE)
+  token <- pw$password[pw$username == rc]
+  redcapConnection(url = url, token = token)
+}
+
+pull_enrollment_info <- function(rcon, fields) {
+  # Pull REDCap project information to count enrolled participants
+  exportRecords(
+    rcon,
+    fields = fields,
+    labels = FALSE,
+    survey = FALSE,
+    factors = FALSE,
+    dates = FALSE,
+    form_complete_auto = FALSE
+  )
+}
+
+matrix_to_vector <- function(df, colname, matrix_vars, select_string) {
+
+  rename_matrix <- function(df) {
+    # make values names of columns
+    w1 <- which(df[,1:ncol(df)] == 1, arr.ind = TRUE)
+    w0 <- which(df[,1:ncol(df)] == 0, arr.ind = TRUE)
+    
+    mode(w1) <- "numeric"
+    mode(w0) <- "numeric"
+    # avoid zero-length error
+    if(length(w1 > 0)) {
+      df[w1] <- names(df)[w1[,"col"]]
+    }
+    df[w0] <- NA
+    
+    df
+  }
+  
+  df_sub <- df %>% 
+    plyr::rename(matrix_vars) %>%
+    select(unlist(matrix_vars, use.names = FALSE)) %>%
+    rename_matrix() %>%
+    tidyr::unite(
+      col = !!colname,
+      sep = ",",
+      na.rm = TRUE
+    )
+  df_sub[df_sub == ""] <- NA
+  
+  df %>%
+    select(-contains(select_string)) %>%
+    cbind(df_sub)
+}
+
+wide_to_long <- function(df, unite_vector, colname) {
+  df %>%
+    tidyr::unite(
+      unite_vector,
+      col = !!colname,
+      sep = "",
+      na.rm = TRUE
+    )
+}
+
+general_cleaning <- function(df, cutoff_date) {
+  df %>%
+    mutate(
+      trans_recode = ifelse(transgender_screen == 0, "no", "yes"),
+      trans_recode = ifelse(is.na(transgender_screen), NA, trans_recode),
+      sex_screen = redcapFactorFlip(sex_screen),
+      random_group = redcapFactorFlip(random_group)
+    ) %>%
+    group_by(record_id) %>%
+    tidyr::fill(
+      sex_screen, age_screen, random_group, 
+      ethnicity, race, trans_recode,
+      eligible_screen, consent
+    ) %>%
+    filter(date <= cutoff_date) %>%
+    ungroup()
+}
+
+peel_off_ineligible <- function(df_enrl, inelig, inelig_names) {
+  df_inelig <- df_enrl %>%
+    filter(redcap_event_name == "screening_arm_1") %>%
+    select(inelig) %>%
+    plyr::rename(inelig_names) %>%
+    summarize(across(.cols = everything(), sum, na.rm = TRUE)) %>%
+    t()
+  
+  # need to hard-code certain values because of a REDCap structure change
+  # df_inelig$smk_cig_next_7 <- 31
+  # df_inelig$vape_next_7 <- 
+  
+  df_inelig %>%
+    write.csv("../out/reasons_for_ineligibility.csv")
+  
+  df_enrl <- df_enrl %>%
+    select(-inelig)
+  
+  list(df_enrl, df_inelig)
+}
+
+enroll_summary <- function(df_enrl) {
+  # number eligible
+  n_elig <- df_enrl %>% 
+    distinct(record_id, .keep_all = TRUE) %>%
+    filter(eligible_screen == 1) %>% 
+    count(name = "n_elig")
+  # number consented
+  n_consent <- df_enrl %>% 
+    distinct(record_id, .keep_all = TRUE) %>%
+    filter(consent == 1) %>% 
+    count(name = "n_consent")
+  # number declined consent
+  n_declined <- df_enrl %>%
+    distinct(record_id, .keep_all = TRUE) %>%
+    filter(eligible_screen == 1 & consent == 0) %>%
+    count(name = "n_declined")
+  # number withdrawn
+  n_withdrawn <- df_enrl %>% 
+    distinct(record_id, .keep_all = TRUE) %>%
+    filter(withdrawn_pi == 1) %>% 
+    count(name = "n_withdrawn")
+  
+  # treatment allocation
+  n_randomized <- df_enrl %>%
+    filter(!is.na(random_group)) %>%
+    distinct(record_id, random_group, .keep_all = TRUE) %>%
+    group_by(random_group) %>%
+    count() %>%
+    tidyr::pivot_wider(
+      names_from = random_group,
+      values_from = n)
+  
+  # number of sessions completed
+  visits_completed <- df_enrl %>% 
+    filter(!is.na(date)) %>%
+    distinct(record_id, random_group, redcap_event_name, .keep_all = TRUE) %>%
+    group_by(redcap_event_name) %>%
+    count() %>%
+    tidyr::pivot_wider(
+      names_from = redcap_event_name,
+       values_from = n
+    )
+  
+  cbind(
+    n_elig, n_consent, n_declined,
+    n_withdrawn, n_randomized, visits_completed
+    ) %>%
+    t() %>%
+    write.csv("../out/enrollment.csv")
+}
+
+peel_off_evali <- function(
+  df, evali_wk1_vars, evali_wk4_vars, evali_wk1, evali_wk4
+) {
+  
+  wk1 <- df %>% 
+    select(record_id, redcap_event_name, random_group, all_of(evali_wk1_vars)) %>%
+    filter(redcap_event_name != "week_4_arm_1") %>%
+    plyr::rename(evali_wk1)
+  
+  wk4 <- df %>%
+    select(record_id, redcap_event_name,random_group, all_of(evali_wk4_vars)) %>%
+    filter(redcap_event_name == "week_4_arm_1") %>%
+    plyr::rename(evali_wk4)
+  
+  df_sub <- rbind(wk1, wk4) %>%
+    mutate(across(
+      !where(is.character), as.numeric)
+    ) %>%
+    group_by(record_id) %>%
+    tidyr::fill(random_group, .direction = "downup") %>%
+    ungroup()
+
+  recode_sev <- function(x) ifelse(x == 3, 1, 0) # recode severe endorsement to 1
+
+  df_sub %>%
+   mutate(random_group = factor(random_group)) %>%
+    mutate_if(is.numeric, recode_sev) %>%
+    filter(!is.na(random_group)) %>%
+    rowwise() %>%
+    mutate(any_severe = sum(
+      c_across(-c(record_id, redcap_event_name, random_group)),
+      na.rm = TRUE
+      )) %>%
+    group_by(random_group) %>%
+    filter(any_severe >= 1) %>%
+    select(-any_severe) %>%
+    summarize(across(where(is.numeric), sum, na.rm = TRUE)) %>%
+    t() %>%
+    write.csv("../out/evali.csv")
+}
+
+
+summarize_demographics <- function(df_enrl) {
+  df_sub <- df_enrl %>% 
+    filter(!is.na(random_group)) %>%
+    distinct(record_id, random_group, .keep_all = TRUE) %>%
+    group_by(random_group)
+  
+  df1 <- df_sub %>% count(sex_screen)
+  df2 <- df_sub %>% count(race)
+  df3 <- df_sub %>% count(ethnicity)
+  
+  list(df1, df2, df3)
+}
+
+summarize_ae <- function(df_enrl, pull_date) {
+  
+  #SAE
+  df1 <- df_enrl %>%
+    select(record_id, random_group, fda_wae, fda_w4ae) %>%
+    filter(fda_wae == 1 | fda_w4ae == 1)
+  
+  # 
+  df1 <- df_enrl %>%
+    select(record_id, random_group, ae_description, ae_severe) %>%
+    filter(ae_description != "")
+  
+  list(df1, df2)
+}
+
+
+summarize_cpd <- function(df_enrl) {
+  df_sub <- df_enrl %>% 
+    filter(!is.na(random_group)) %>%
+    group_by(random_group)
+  
+
+  df_sub %>%
+    select(
+      record_id, random_group, redcap_event_name,
+      days_smoke_wk0, cpd_wk0,
+      cig_7days_wk1, cpd_wk1, 
+      cig_7days_wk4, cpd_wk4
+      ) %>%
+    mutate(
+      avg_cpd_wk0 = days_smoke_wk0*cpd_wk0/7,
+      avg_cpd_wk1 = cig_7days_wk1*cpd_wk1/7,
+      avg_cpd_wk4 = cig_7days_wk4*cpd_wk4/7
+      ) %>%
+    select(record_id, random_group, redcap_event_name,
+           avg_cpd_wk0, avg_cpd_wk1, avg_cpd_wk4) %>%
+    tidyr::unite(
+      "avg_cpd",
+      avg_cpd_wk0, avg_cpd_wk1, avg_cpd_wk4,
+      na.rm = TRUE
+    ) %>%
+    mutate(avg_cpd = as.numeric(avg_cpd)) %>%
+    group_by(random_group, redcap_event_name) %>%
+    summarize(
+      mean = mean(avg_cpd, na.rm = TRUE),
+      median = median(avg_cpd, na.rm = TRUE),
+      IQR = IQR(avg_cpd, na.rm = TRUE),
+      n = n()
+      ) %>%
+    write.csv("../out/cpd.csv", row.names = FALSE)
+}
+
+summarize_ecig <- function(df_enrl) {
+  df_sub <- df_enrl %>% 
+    filter(!is.na(random_group)) %>%
+    group_by(random_group)
+  
+  df_sub <- df_sub %>%
+    select(
+      record_id, random_group, redcap_event_name,
+      ecig_7days_wk1, ecig_7days_wk4,
+      days_studypod_wk1, 
+      days_studypod_wk4, studypods_wk1, studypods_wk4
+    ) %>%
+    filter(!redcap_event_name %in% c("week_0_arm_1", "followup_arm_1")) %>%
+    tidyr::unite(
+      "ecig_7days",
+      ecig_7days_wk1, ecig_7days_wk4,
+      na.rm = TRUE
+    ) %>%
+    tidyr::unite(
+      "days_studypod",
+      days_studypod_wk1,days_studypod_wk4,
+      na.rm = TRUE
+    ) %>%
+    tidyr::unite(
+      "studypods",
+      studypods_wk1, studypods_wk4,
+      na.rm = TRUE
+    ) %>%
+    mutate(
+      across(.cols = c(
+        ecig_7days, days_studypod, studypods),
+                  as.numeric)
+      )
+  
+  # clean days > 7
+  
+  df_sub <- df_sub %>%
+    ungroup() %>%
+    mutate(
+      ecig_7days = ifelse(ecig_7days > 7, NA, ecig_7days),
+      days_studypod = ifelse(days_studypod > 7, NA, days_studypod)
+    )
+  
+  
+  df_sub %>%
+    group_by(redcap_event_name, random_group) %>%
+    summarize(across(
+      where(is.numeric), 
+      list(mean = mean, median = median, IQR = IQR, n = ~n()), 
+      na.rm = TRUE)) %>%
+    write.csv("../out/ecig.csv")
+}
+
+summarize_co <- function(df_enrl) {
+  df_enrl %>%
+    select(record_id, random_group, redcap_event_name, co) %>%
+    filter(
+      !is.na(random_group),
+      redcap_event_name != "followup_arm_1"
+      ) %>%
+    mutate(
+      co = as.numeric(co),
+      co = ifelse(co == 999, NA, co)
+      ) %>%
+    group_by(redcap_event_name, random_group) %>%
+    summarize(
+      mean = mean(co, na.rm = TRUE),
+      median = median(co, na.rm = TRUE),
+      IQR = IQR(co, na.rm = TRUE),
+      n = n()
+    ) %>%
+    write.csv("../out/co.csv", row.names = FALSE)
+}
+
+summarize_increase <- function(df_enrl, increase_fields) {
+ inc_summary <-  df_enrl %>%
+    select(
+      record_id, random_group, all_of(increase_fields)
+    ) %>%
+    plyr::rename(list(
+      "calc6_pi" = "week1_cpd_inc",
+      "calc3_co_pi" = "week1_co_inc",
+      "calc9_pi" = "week2_cpd_inc",
+      "calc6_co_pi" = "week2_co_inc",
+      "calc12_pi" = "week3_cpd_inc",
+      "calc9_co_pi" = "week3_co_inc",
+      "calc15_pi" = "week4_cpd_inc",
+      "calc12_co_pi" = "week4_co_inc"
+    )) %>%
+    group_by(record_id) %>%
+    tidyr::fill(where(is.numeric), .direction = "updown") %>%
+   tidyr::fill(random_group, .direction = "updown") %>%
+    filter(!is.na(random_group)) %>%
+    distinct(.keep_all = TRUE) %>%
+    mutate(
+      w1_both = sum(week1_cpd_inc, week1_co_inc),
+      w2_both = sum(week2_cpd_inc, week2_co_inc),
+      w3_both = sum(week3_cpd_inc, week3_co_inc),
+      w4_both = sum(week4_cpd_inc, week4_co_inc),
+    ) %>%
+    select(-contains("inc")) %>%
+   filter(if_any(where(is.numeric), .fns = ~.x > 1))
+ 
+ # get use for these participants
+ inc_subjects <- df_enrl %>%
+   filter(
+     record_id %in% inc_summary$record_id,
+     !redcap_event_name %in% c("screening_arm_1", "followup_arm_1")
+     ) %>%
+   select(
+     record_id, random_group, redcap_event_name, co, 
+     cpd_wk0, cpd_wk1, cpd_wk4
+     ) %>%
+   tidyr::unite(
+     "cpd",
+     cpd_wk0, cpd_wk1, cpd_wk4,
+     na.rm = TRUE
+   ) %>%
+   tidyr::pivot_longer(
+     c(co, cpd)
+   ) %>%
+   tidyr::pivot_wider(
+     names_from = redcap_event_name,
+     values_from = value
+   )
+
+  write.csv(inc_summary, "../out/increase_summary.csv", row.names = FALSE)
+  write.csv(inc_subjects, "../out/increase_subjects.csv", row.names = FALSE)
+}
+
+
+# common -------
+
+enrl_fields <- c(
+  "record_id", "sex_screen",
+  "ethnicity_screen", "race_screen", "age_screen",
+  "transgender_screen", "withdrawn_pi", "fda_wae", "fda_w4ae"
+)
+
+elig_fields <- c(
+  "consent", "eligible_screen"
+)
+
+session_dates <- c(
+  "date_screen", "date_wk0", "date_wk1", "date_wk4", "date_fu"
+)
+
+random_fields <- c("random_group")
+
+ethnicity_vars <- list(
+  "ethnicity_screen___0" = "not_hispanic",
+  "ethnicity_screen___1" = "mexican",
+  "ethnicity_screen___2" = "puerto_rican",
+  "ethnicity_screen___3" = "cuban",
+  "ethnicity_screen___4" = "hispanic_other"
+)
+race_vars <- list(
+  "race_screen___0" = "white",
+  "race_screen___1" = "black",
+  "race_screen___2" = "american_indian",
+  "race_screen___3" = "asian",
+  "race_screen___4" = "native_hawaiian",
+  "race_screen___5" = "other_race"
+)
+
+
+
+session_dates <- c(
+  "date_screen", "date_wk0", "date_wk1", "date_wk4", "date_fu"
+)
+
+ae_vars_desc <- c(
+  "problem1_desc_wk1", 
+  "problem2_desc_wk1", 
+  "problem3_desc_wk1", 
+  "problem1_desc_wk4", 
+  "problem2_desc_wk4", 
+  "problem3_desc_wk4"
+)
+
+ae_vars_sev <-c(
+  "problem1_severe_wk1",
+  "problem2_severe_wk1",
+  "problem3_severe_wk1",
+  "problem1_severe_wk4",
+  "problem2_severe_wk4",
+  "problem3_severe_wk4"
+)
+
+inelig_names <- list(
+  "r1_rfi" = "consent_to_screen",
+  "r2_rfi" = "age_elig",
+  "r3_rfi" = "days_smk_last_30",
+  "r4_rfi" = "days_smk_last_7",
+  "r4a_rfi" = "reg_smk",
+  "r5_rfi" = "days_ecig_last_30",
+  "r6_rfi" = "juul_5pct_pods",
+  "r7_rfi" = "juul_5pct_perwk",
+  "r8_rfi" = "juul_5pct_last_7",
+  "r9_rfi" = "ecig_last_7",
+  "r10_rfi" = "other_nic",
+  "r11_rfi" = "own_juul",
+  "r12_rfi" = "quit_cig_plans",
+  "r13_rfi" = "quit_ecig_plans",
+  "r14_rfi" = "willing_reduce_ecig",
+  "r15_rfi" = "other_cessation",
+  "r16_rfi" = "smk_cig_next_7",
+  "r17_rfi" = "vape_next_7",
+  "r20_rfi" = "daily_phone_access",
+  "r21_rfi" = "weekly_phone_access",
+  "r22_rfi" = "email_access",
+  "r23_rfi" = "mail_access",
+  "r24_rfi" = "willing_to_pickup",
+  "r25_rfi" = "sleep",
+  "r26_rfi" = "vt_resident",
+  "r27_rfi" = "us_citizen",
+  "r28_rfi" = "english",
+  "r29_rfi" = "other_research",
+  "r29a_rfi" = "living_with_someone",
+  "r30_rfi" = "smoking_calcualtion",
+  "r31_rfi" = "pregnant",
+  "r32_rfi" = "breastfeeding",
+  "r33_rfi" = "sexually_active",
+  "r34_rfi" = "pregnancy_test",
+  "r35_rfi" = "covid_19",
+  "r36_rfi" = "covid19_contact"
+)
+
+evali_wk1 <- list(
+  "symp1_wk1" = "cough",
+  "symp2_wk1" = "runny_nose",
+  "symp3_wk1" = "nasal_congestion",
+  "symp4_wk1" = "shortness_of_breath",
+  "symp5_wk1" = "chest_pain",
+  "symp6_wk1" = "nausea",
+  "symp7_wk1" = "vomiting",
+  "symp8_wk1" = "diarrhea",
+  "symp9_wk1" = "abdominal_pain",
+  "symp10_wk1" = "fatigue",
+  "symp11_wk1" = "fever",
+  "symp12_wk1" = "weight_loss"
+)
+
+evali_wk4 <- list(
+  "symp1_wk4" = "cough",
+  "symp2_wk4" = "runny_nose",
+  "symp3_wk4" = "nasal_congestion",
+  "symp4_wk4" = "shortness_of_breath",
+  "symp5_wk4" = "chest_pain",
+  "symp6_wk4" = "nausea",
+  "symp7_wk4" = "vomiting",
+  "symp8_wk4" = "diarrhea",
+  "symp9_wk4" = "abdominal_pain",
+  "symp10_wk4" = "fatigue",
+  "symp11_wk4" = "fever",
+  "symp12_wk4" = "weight_loss"
+)
+
+inelig <- c()
+for (i in c(1:17, 20:36)) {
+  tmp <- paste("r", i, "_rfi", sep = "")
+  inelig <- c(inelig, tmp)
+}
+inelig <- c(inelig, "r4a_rfi")
+
+
+use_fields <- c(
+  "days_smoke_wk0", "cpd_wk0",
+  "cig_7days_wk1", "cpd_wk1",
+  "cig_7days_wk4", "cpd_wk4",
+  # on how many days did you vape?
+  "ecig_7days_wk1","ecig_7days_wk4",
+  # on how many days did you use a non-study c-cigarette?
+  "ecig_nonstudy_wk1", "ecig_nonstudy_wk4",
+  # on how many days did you use a study juul pod?
+  "days_studypod_wk1", "days_studypod_wk4",
+  # how many study pods did you use [in the past week]?
+  "studypods_wk1", "studypods_wk4"
+)
+
+increase_fields <- c(
+  "calc6_pi", "calc3_co_pi",
+  "calc9_pi", "calc6_co_pi",
+  "calc12_pi", "calc9_co_pi",
+  "calc15_pi", "calc12_co_pi"
+)
+
+co_fields <- c(
+  "co_wk1", "co_wk4", "co_wk0"
+)
+
+evali_wk1_vars <- c()
+evali_wk4_vars <- c()
+for (i in 1:12) {
+  tmp <- paste("symp", i, "_wk1", sep = "")
+  evali_wk1_vars <- c(evali_wk1_vars, tmp)
+}
+for (i in 1:12) {
+  tmp <- paste("symp", i, "_wk4", sep = "")
+  evali_wk4_vars <- c(evali_wk4_vars, tmp)
+}
+
+fields <- c(
+  enrl_fields, random_fields, session_dates, 
+  ae_vars_desc, ae_vars_sev, elig_fields, inelig,
+  use_fields, evali_wk1_vars, evali_wk4_vars,
+  co_fields, increase_fields
+)
+
+pull_date <- as.Date("2022-01-17")
+# main -----
+
+# pull
+rcon <- build_rcon("eli_rrp")
+rcon_ip <- build_rcon("eli_rrp_inperson")
+df_national <- pull_enrollment_info(rcon, fields)
+df_ip <- pull_enrollment_info(rcon_ip, fields)
+# #
+df_enrl <- rbind(df_national, df_ip)
+
+save(df_enrl, file = "../data/enrollment.RData")
+load("../data/enrollment.RData")
+
+# clean
+vec <- peel_off_ineligible(df_enrl, inelig, inelig_names)
+df_enrl <- vec[[1]]
+df_inelig <- vec[[2]]
+
+peel_off_evali(df_enrl, evali_wk1_vars, evali_wk4_vars, evali_wk1, evali_wk4)
+
+df_enrl <- matrix_to_vector(df_enrl, "ethnicity", ethnicity_vars, "ethnicity")
+df_enrl <- matrix_to_vector(df_enrl, "race", race_vars, "race")
+df_enrl <- wide_to_long(df_enrl, session_dates, "date")
+
+df_enrl <- wide_to_long(df_enrl, ae_vars_desc, "ae_description")
+df_enrl <- wide_to_long(df_enrl, ae_vars_sev, "ae_severe")
+
+df_enrl <-  wide_to_long(df_enrl, co_fields, "co")
+
+
+
+
+df_enrl <- general_cleaning(
+  df_enrl,
+  cutoff_date = pull_date
+  )
+
+# summarize
+
+enroll_summary(df_enrl) #csv
+summarize_demographics(df_enrl)
+summarize_ae(df_enrl)
+summarize_cpd(df_enrl) #csv
+summarize_ecig(df_enrl) #csv
+summarize_co(df_enrl) #csv
+summarize_increase(df_enrl, increase_fields) #csv
+

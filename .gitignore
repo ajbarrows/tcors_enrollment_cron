@@ -1,0 +1,11 @@
+*.Rproj
+*.Rhistory
+*.RData
+*.Ruserdata
+archive
+enrollment_history
+enrollment_report/password.csv
+enrollment_report/p4
+enrollment_report/s3
+enrollment_report/scratch.R
+enrollment_report/s3/ivr.tsv

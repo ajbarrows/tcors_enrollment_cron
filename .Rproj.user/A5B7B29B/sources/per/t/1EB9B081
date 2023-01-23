@@ -1,0 +1,26 @@
+{
+    "id": "1EB9B081",
+    "path": "~/Dropbox/vcbh/development/tcors_enrollment_cron/enrollment_report/diagrammer_flowchart_s2.R",
+    "project_path": "enrollment_report/diagrammer_flowchart_s2.R",
+    "type": "r_source",
+    "hash": "3408948722",
+    "contents": "",
+    "dirty": false,
+    "created": 1630074282265.0,
+    "source_on_save": false,
+    "relative_order": 6,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "117,1",
+        "scrollLine": "104"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1630348429,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1630348429350,
+    "read_only": false,
+    "read_only_alternatives": []
+}

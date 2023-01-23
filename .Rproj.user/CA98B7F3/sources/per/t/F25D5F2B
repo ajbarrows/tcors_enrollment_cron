@@ -1,0 +1,26 @@
+{
+    "id": "F25D5F2B",
+    "path": "~/Dropbox/vcbh/development/tcors_enrollment_cron/enrollment_report/app.R",
+    "project_path": "enrollment_report/app.R",
+    "type": "r_source",
+    "hash": "942847487",
+    "contents": "",
+    "dirty": false,
+    "created": 1616425837505.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "372,4",
+        "scrollLine": "356"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1621870900,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1621870900498,
+    "read_only": false,
+    "read_only_alternatives": []
+}
