@@ -2,6 +2,7 @@
 *.Rhistory
 *.RData
 *.Ruserdata
+.Rproj.user
 archive
 enrollment_history
 enrollment_report/password.csv
